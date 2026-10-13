@@ -164,7 +164,6 @@ If you use FORGE, please cite:
              Zebardast, Nazlee},
   year    = {2026},
   Preprint: https://www.medrxiv.org/content/10.64898/2026.05.08.26352729v3
-  note    = {Manuscript under review}
 }
 ```
 
