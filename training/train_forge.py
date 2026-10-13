@@ -131,26 +131,28 @@ torch.manual_seed(config.seed)
 np.random.seed(config.seed)
 random.seed(config.seed)
 
-os.makedirs(config.output_dir, exist_ok=True)
-os.makedirs(config.model_dir, exist_ok=True)
+def print_banner():
+    os.makedirs(config.output_dir, exist_ok=True)
+    os.makedirs(config.model_dir, exist_ok=True)
 
-print("\n" + "="*70)
-print(f"ENTANGLED VF-RNFL CONTRASTIVE LEARNING")
-print("="*70)
-print(f"Eye selection: {config.eye_selection.upper()}")
-print("\nEntanglement Architecture:")
-print(f"  - Shared bottleneck: {config.shared_feature_dim}D")
-print(f"  - Cross-attention heads: {config.num_attention_heads}")
-print(f"  - FiLM modulation enabled")
-print(f"  - Joint embedding: {config.final_embedding_dim}D")
-print("\nLoss Weights (Eq. 6):")
-print(f"  - λ1 MoCo:          {config.lambda_moco}")
-print(f"  - λ2 Cross-modal:   {config.lambda_cross}")
-print(f"  - λ3 Diversity:     {config.lambda_div}")
-print(f"  - λ4 Progression:   {config.lambda_prog}")
-print(f"\nCross-validation: {config.n_folds}-fold, patient-level, "
-      f"val fraction {config.val_fraction} of train+val")
-print("="*70 + "\n")
+    print("\n" + "="*70)
+    print(f"ENTANGLED VF-RNFL CONTRASTIVE LEARNING")
+    print("="*70)
+    print(f"Eye selection: {config.eye_selection.upper()}")
+    print("\nEntanglement Architecture:")
+    print(f"  - Shared bottleneck: {config.shared_feature_dim}D")
+    print(f"  - Cross-attention heads: {config.num_attention_heads}")
+    print(f"  - FiLM modulation enabled")
+    print(f"  - Joint embedding: {config.final_embedding_dim}D")
+    print("\nLoss Weights (Eq. 6):")
+    print(f"  - λ1 MoCo:          {config.lambda_moco}")
+    print(f"  - λ2 Cross-modal:   {config.lambda_cross}")
+    print(f"  - λ3 Diversity:     {config.lambda_div}")
+    print(f"  - λ4 Progression:   {config.lambda_prog}")
+    print(f"\nCross-validation: {config.n_folds}-fold, patient-level, "
+          f"val fraction {config.val_fraction} of train+val")
+    print("="*70 + "\n")
+
 
 # ==================== FEATURE-WISE LINEAR MODULATION (FiLM) ====================
 
@@ -1289,9 +1291,7 @@ def extract_embeddings(model, loader, config):
 # ==================== MAIN ====================
 
 def main():
-    print("\n" + "="*70)
-    print("ENTANGLED VF-RNFL CONTRASTIVE LEARNING")
-    print("="*70)
+    print_banner()
     
     # Load labels
     label_dict, label_to_idx, num_classes = load_matched_data_with_labels(config)

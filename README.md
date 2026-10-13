@@ -48,14 +48,29 @@ FORGE/
 ├── LICENSE                       MIT
 ├── requirements.txt              minimum library versions
 ├── training/
-│   └── train_forge.py            VF-guided (privileged) contrastive encoder + patient-level 5-fold CV — Fig. 1A
+│   └── train_forge.py            stage 1 — VF-guided (privileged) contrastive encoder, patient-level 5-fold CV
+├── phenotyping/
+│   ├── forge_phenotyping.py      shared toolkit: beta-VAE, FCM, GMM, diversity metrics, composite score, NCC, figures, artifact I/O
+│   ├── run_vae_fcm.py            stage 2 — beta-VAE + fuzzy c-means sweep and final fit (primary endophenotypes)
+│   └── run_vae_gmm.py            stage 2 — beta-VAE + Gaussian-mixture sweep and final fit (robustness check)
+├── inference/
+│   └── transfer_inference.py     stage 3 — frozen MEE encoder / scaler / VAE / cluster model applied to UKBB or MGBB
 └── figures/
     ├── fig1_forge_framework.png
     ├── fig2_vf_guidance_ablation.png
     └── fig7_gene_prioritization.png
 ```
 
-`training/train_forge.py` is the complete, self-contained training script for the FORGE encoder (shared ResNet-50 backbone, modality-specific encoders, cross-attention + FiLM entangled fusion, MoCo queue, learned null-VF embedding, and the multi-objective loss). Downstream phenotyping (β-VAE sweep, FCM/GMM clustering, NCC, cross-cohort transfer) and the GWAS / post-GWAS pipelines are described in [Pipeline overview](#pipeline-overview) below.
+The three stages chain through files on disk (no cohort-specific paths are hard-coded; everything is set by environment variables or the `Config` class at the top of each script):
+
+```
+train_forge.py ──► outputs/embeddings/entangled_rnfl_embeddings_both_oof.npy          (VF-guided path)
+               ──► outputs/embeddings/entangled_rnfl_octonly_embeddings_both_oof.npy  (null-VF / OCT-only path)
+               ──► outputs/embeddings/oof_metadata_both.csv
+               ──► outputs/models/best_entangled_vf_rnfl_model_both_fold{k}.pt
+run_vae_fcm.py ──► outputs/phenotyping/fcm/{scaler,vae,fcm_model,spec}_*_{with_vf,without_vf}.*
+transfer_inference.py (UKBB / MGBB images + the artifacts above) ──► outputs/inference_<cohort>/*_participant_level.csv  (GWAS phenotypes)
+```
 
 ## Installation
 
@@ -143,14 +158,36 @@ rnfl_embedding = out["rnfl_embedding"]               # 256-D, used for all exter
 
 This is the path used to phenotype UK Biobank and MGB Biobank, neither of which has paired perimetry.
 
-## Pipeline overview
+## Stage 2 — endophenotype discovery (β-VAE + FCM / GMM)
 
-1. **Curation & artifact correction** (Fig. 9 in the paper). Quality filtering (signal strength ≥ 7, ≤ 5 % missing), ±6-month OCT–VF temporal matching, and inpainting with a partial-convolution U-Net trained on the maps' own missing-pixel masks.
-2. **VF-guided encoder** — `training/train_forge.py` (this repo). Produces 256-D RNFL embeddings.
-3. **Distribution-aware latent modeling.** Embeddings are standardized and projected through a β-VAE; a grid sweep over latent dimension (d = 2–20) and cluster number (k = 4–15) with fuzzy c-means (m ∈ {1.5, 2.0, 2.5, 3.0}) and GMM (full/diagonal covariance) selects the configuration by a composite of Silhouette, normalized Calinski–Harabasz, inverted Davies–Bouldin and diversity score. Selected: **FCM 15D / k = 9 (m = 1.5)** and **GMM 20D / k = 13**. Within-cluster coherence is quantified by NCC.
-4. **Cross-cohort transfer.** The frozen encoder, scaler, VAE encoder (posterior mean μ) and cluster models are applied as-is to UKBB and MGBB through the OCT-only path. One phenotype vector per participant: most recent scan per eye, both eyes averaged on the most recent date.
-5. **Clinical validity.** Criterion / convergent / discriminant validity against 16 outcomes and incremental AUROC with nested-CV ridge logistic regression.
-6. **GWAS & post-GWAS.** REGENIE v4.1.2 on the 15 rank-inverse-normalized axes (age, sex, array, refractive error, 10 PCs); PLINK 2 LD clumping; LDSC and GCTA-GREML heritability; replication in MGBB (PLINK 2 `--glm`); SuSiE-RSS fine-mapping; MAGMA; S-PrediXcan / S-MultiXcan (GTEx v8 MASHR); coloc (GTEx + EyeGEx retina); SMR/HEIDI; ECLIPSER cell-type enrichment.
+```bash
+FORGE_DATA_ROOT=/path/to/data FORGE_OUTPUT_DIR=./outputs/embeddings python phenotyping/run_vae_fcm.py
+FORGE_DATA_ROOT=/path/to/data FORGE_OUTPUT_DIR=./outputs/embeddings python phenotyping/run_vae_gmm.py
+```
+
+Both runners take the two out-of-fold embedding sets from stage 1 — **WITH VF** (VF-guided path) and **WITHOUT VF** (the identically trained model with the VF input replaced by the learned null embedding) — and for each condition:
+
+1. **Sweep** latent dimension *d* ∈ {2, 5, 10, 15, 20} (one β-VAE per *d*: hidden 256-128-64-32, β = 1.25, Adam 10⁻³, early stopping) × cluster number *k* = 4…15 × fuzziness *m* ∈ {1.5, 2.0, 2.5, 3.0} (FCM) or covariance ∈ {full, diag} (GMM). Posterior means μ are the latents.
+2. **Score** every configuration with the manuscript composite, `composite = mean(Silhouette, Calinski-Harabasz normalised to [0,1], inverted Davies-Bouldin, diversity score)`; the diversity score summarises per-dimension histogram peaks, peak separation, entropy and multimodality, and mean KL(N(μ,σ²)‖N(0,1)), entropy and peak-location diversity are reported alongside (Table 2). `fig_composite_grid_*.png` is the *d* × *k* grid of Fig. 1A.
+3. **Final fit** at the configuration pinned in `Config.final_spec` (FCM: 15D / 9 clusters / m = 1.5 with VF, 20D / 12 without; GMM: 20D / 13 with VF, 20D / 11 without; set to `None` to use the grid optimum) and save the transfer artifacts: `scaler_*.pkl`, `vae_*.pt`, `fcm_model_*.pkl` / `gmm_model_*.pkl`, `spec_*.json`, latents, per-scan cluster assignments and memberships.
+4. **NCC**: for each cluster the 20 highest-membership scans are loaded, their pairwise normalised cross-correlation computed, candidates with mean NCC < 0.08 dropped, and the five best by 0.5·membership + 0.5·mean-NCC shown next to the NCC matrix (`fig_ncc_*.png`, Fig. 1B). Scans whose maximum membership is below 0.7 are moved to their next-best cluster before this step (`membership_threshold`; `None` disables).
+5. `table2_<method>.csv` and `fig_metrics_<method>.png` compare the two conditions (Fig. 2C); `fig_latent_scatter_<method>.png` is Fig. 2A/B.
+
+## Stage 3 — cross-cohort transfer (UK Biobank, MGB Biobank)
+
+```bash
+FORGE_COHORT=ukbb FORGE_EXTERNAL_IMAGES=/path/to/ukbb/rnfl_inpainted \
+FORGE_MODEL_DIR=./outputs/models FORGE_PHENOTYPING_DIR=./outputs/phenotyping \
+python inference/transfer_inference.py
+```
+
+Pure feature transfer, with nothing refitted on external data: the frozen fold-0 encoder embeds every artifact-corrected map through the **OCT-only (null-VF) path**; the MEE scaler is applied as a transform only; the frozen MEE β-VAE gives posterior-mean latents in the MEE space; memberships are computed against the saved MEE FCM centroids (m = 1.5) or GMM components. By default the `with_vf` FCM artifacts (the 15 VF-guided endophenotypes) are transferred; `Config.method` / `Config.condition` switch to GMM or the ablation.
+
+External file names must start with `<participant>_<eye>` (eye ∈ OD/OS/R/L/RIGHT/LEFT); a `YYYYMMDD` or `YYYY-MM-DD` token, if present, is used as the acquisition date. Outputs per cohort: 256-D embeddings, latents, memberships, a scan-level CSV, NCC panels, and **`<cohort>_<method>_<condition>_participant_level.csv`** — one row per participant built exactly as in Methods (most recent scan per eye, both eyes averaged on the participant's most recent date; all scans averaged when no date is available), which is the quantitative-trait file for the GWAS.
+
+## Downstream genetics
+
+The GWAS and post-GWAS analyses use standard tools as described in Methods and are not re-implemented here: REGENIE v4.1.2 (rank-inverse-normalised axes; age, sex, array, refractive error, 10 PCs), PLINK 2 (LD clumping, MGBB replication), LDSC and GCTA-GREML (heritability, genetic correlation), SuSiE-RSS (fine-mapping), MAGMA, S-PrediXcan / S-MultiXcan (GTEx v8 MASHR), coloc (GTEx + EyeGEx retina), SMR/HEIDI and ECLIPSER (cell-type enrichment).
 
 ## Citation
 

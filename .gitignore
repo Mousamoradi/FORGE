@@ -13,6 +13,7 @@ outputs/
 *.npy
 *.npz
 *.csv
+*.pkl
 !figures/*
 
 # OS / editors
