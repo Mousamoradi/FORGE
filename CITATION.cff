@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+message: "If you use FORGE, please cite the manuscript below."
+title: "FORGE: Functionally guided OCT Representation for Glaucoma Endophenotyping"
+type: software
+repository-code: "https://github.com/Mousamoradi/FORGE"
+license: MIT
+authors:
+  - family-names: Moradi
+    given-names: Mousa
+  - family-names: Chen
+    given-names: Liyin
+  - family-names: Zhao
+    given-names: Yan
+  - family-names: Sekimitsu
+    given-names: Sayuri
+  - family-names: Bineshfar
+    given-names: Niloufar
+  - family-names: Wiggs
+    given-names: Janey L.
+  - family-names: Eslami
+    given-names: Mohammad
+  - family-names: Wang
+    given-names: Mengyu
+  - family-names: Elze
+    given-names: Tobias
+  - family-names: Segrè
+    given-names: Ayellet V.
+  - family-names: Zebardast
+    given-names: Nazlee
+preferred-citation:
+  type: article
+  title: "FORGE: Functionally guided OCT Representation for Glaucoma Endophenotyping"
+  year: 2026
+  authors:
+    - family-names: Moradi
+      given-names: Mousa
+    - family-names: Chen
+      given-names: Liyin
+    - family-names: Zhao
+      given-names: Yan
+    - family-names: Sekimitsu
+      given-names: Sayuri
+    - family-names: Bineshfar
+      given-names: Niloufar
+    - family-names: Wiggs
+      given-names: Janey L.
+    - family-names: Eslami
+      given-names: Mohammad
+    - family-names: Wang
+      given-names: Mengyu
+    - family-names: Elze
+      given-names: Tobias
+    - family-names: Segrè
+      given-names: Ayellet V.
+    - family-names: Zebardast
+      given-names: Nazlee

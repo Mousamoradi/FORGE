@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Data, models, embeddings (never commit patient data)
+data/
+outputs/
+*.pt
+*.pth
+*.npy
+*.npz
+*.csv
+!figures/*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.ipynb_checkpoints/
+.vscode/
+.idea/
