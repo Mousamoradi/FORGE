@@ -237,7 +237,7 @@ If you use FORGE, please cite:
              Wiggs, Janey L. and Eslami, Mohammad and Wang, Mengyu and Elze, Tobias and Segr{\`e}, Ayellet V. and
              Zebardast, Nazlee},
   year    = {2026},
-  Preprint    = {Moradi, M., Chen, L., Zhao, Y., Bineshfar, N., Sekimitsu, S., Eslami, M., Wang, M., Elze, T. and Zebardast, N., 2026. FORGE: Functionally-guided OCT Representation for Glaucoma Endophenotyping. medRxiv, pp.2026-05.}
+  Preprint    = {https://www.medrxiv.org/content/10.64898/2026.05.08.26352729v3}
 }
 ```
 
