@@ -1,0 +1,23 @@
+diff --git a/software/metax/cross_model/JointAnalysis.py b/software/metax/cross_model/JointAnalysis.py
+index ef5b552..9eb128f 100644
+--- a/software/metax/cross_model/JointAnalysis.py
++++ b/software/metax/cross_model/JointAnalysis.py
+@@ -1,6 +1,6 @@
+ import numpy
+ import logging
+-from numpy.core import dot, array
++from numpy import dot, array
+ from scipy import stats
+ 
+ from .. import Exceptions
+diff --git a/software/metax/misc/Math.py b/software/metax/misc/Math.py
+index acb4c43..4bd79ef 100644
+--- a/software/metax/misc/Math.py
++++ b/software/metax/misc/Math.py
+@@ -1,5 +1,5 @@
+ import numpy
+-from numpy.core import (product, asarray, dot, transpose, multiply, newaxis, maximum)
++from numpy import (prod as product, asarray, dot, transpose, multiply, newaxis, maximum)
+ 
+ def _rc(s, tolerance):
+     cutoff = tolerance * maximum.reduce(s)

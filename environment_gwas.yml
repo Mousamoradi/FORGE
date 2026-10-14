@@ -1,0 +1,22 @@
+# conda environment for validation_and_genetics/ (stage 4).
+# REGENIE, LDSC, GCTA, MAGMA, MetaXcan and SMR are installed separately and
+# located through environment variables (see README, "Stage 4").
+name: forge-gwas
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - numpy=2.2.6
+  - pandas=2.3.3
+  - scipy=1.15.3
+  - statsmodels=0.14.6
+  - scikit-learn=1.7.2
+  - pyarrow
+  - htslib
+  - plink2
+  - r-base=4.4.2
+  - r-data.table=1.17.8
+  - r-matrix=1.7.1
+  - r-susier=0.14.2
+  - r-coloc=5.2.3

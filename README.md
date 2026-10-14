@@ -26,7 +26,7 @@ FORGE is a cross-modal, privileged-learning framework for glaucoma endophenotypi
 | GWAS (39,381 UKBB Europeans) | **53 LD-independent loci** in 41 regions, **23 novel** for glaucoma/IOP; all 15 axes heritable (LDSC h² 0.06–0.12) |
 | Replication (711 MGBB Europeans) | 75 % sign concordance (P = 0.002), Deming slope 0.74 |
 | VF guidance vs ablation | Median heritability Z 6.15 vs 4.76 (P = 9 × 10⁻⁵); only VF-guided axes resolve retinal ganglion-cell enrichment |
-| Prioritized genes | 28 putative causal genes; *ARHGEF7*, *CNKSR3*, *ADCY5* at novel loci supported by retina colocalization and SMR |
+| Prioritized genes | 27 putative causal genes; *ARHGEF7*, *CNKSR3*, *ADCY5* at novel loci supported by retina colocalization and SMR |
 
 ### Visual-field guidance improves the learned representation
 
@@ -34,11 +34,11 @@ FORGE is a cross-modal, privileged-learning framework for glaucoma endophenotypi
 
 **Fig. 2.** (A, B) Latent-space projections and cluster assignments for FCM (9 clusters, 15D) and GMM (13 clusters, 20D), with VF guidance (left) vs. the OCT-only ablation (right). (C) Clustering quality metrics on the held-out MEE test partition (n = 538): composite score, Silhouette, normalized Calinski–Harabasz, inverted Davies–Bouldin and diversity score. The gain is consistent across every metric and both clustering algorithms.
 
-### Four lines of genetic evidence prioritize 28 genes
+### Four lines of genetic evidence prioritize 27 genes
 
 ![Gene prioritization](figures/fig7_gene_prioritization.png)
 
-**Fig. 7.** (A) Support from MAGMA gene-based association, S-PrediXcan/S-MultiXcan transcriptome- and splicing-wide association, colocalization and SMR for the 28 genes supported by at least two analyses. *ARHGEF7*, *CNKSR3* and *ADCY5* (orange) are at loci novel to POAG, IOP and our previous OCT-only endophenotype GWAS. (B) Locus-comparison plots at those three loci (retina cis-eQTL vs. GWAS −log₁₀ P), with SuSiE 95 % credible-set members and the coloc shared variant.
+**Fig. 7.** (A) Support from MAGMA gene-based association, S-PrediXcan/S-MultiXcan transcriptome- and splicing-wide association, colocalization and SMR for the 27 genes supported by at least two analyses. *ARHGEF7*, *CNKSR3* and *ADCY5* (orange) are at loci novel to POAG, IOP and our previous OCT-only endophenotype GWAS. (B) Locus-comparison plots at those three loci (retina cis-eQTL vs. GWAS −log₁₀ P), with SuSiE 95 % credible-set members and the coloc shared variant.
 
 ## Repository layout
 
@@ -55,6 +55,19 @@ FORGE/
 │   └── run_vae_gmm.py            stage 2 — beta-VAE + Gaussian-mixture sweep and final fit (robustness check)
 ├── inference/
 │   └── transfer_inference.py     stage 3 — frozen MEE encoder / scaler / VAE / cluster model applied to UKBB or MGBB
+├── validation_and_genetics/      stage 4 — phenotypic validation, GWAS, heritability, replication, post-GWAS
+│   ├── common.py                 shared helpers (trait names, summary-statistic reader, BH-FDR, M_eff = 5)
+│   ├── phenotypic_validation/    criterion / convergent / discriminant associations; incremental AUROC
+│   ├── gwas/                     UKBB sample QC, ancestry, REGENIE, call-rate filter, clumping, locus definition
+│   ├── heritability/             LDSC, GCTA-GREML, genetic vs phenotypic correlation, M_eff, VF-guided vs no-VF
+│   ├── novelty/                  LEAD / PROXY / PROXIMITY classification of leads against published loci
+│   ├── mgbb/                     MGBB phenotypes, PLINK 2 --glm, locus-clustered replication, POAG association
+│   └── post-gwas/
+│       ├── finemap/              SuSiE-RSS with UK Biobank LD windows
+│       ├── gene/                 MAGMA, S-PrediXcan / S-MultiXcan (GTEx v8 MASHR)
+│       ├── coloc/                coloc vs GTEx (eQTL Catalogue SuSiE) and EyeGEx retina; locus-compare check
+│       └── smr/                  SMR / HEIDI with GTEx and retina BESD files
+├── environment_gwas.yml          conda environment for validation_and_genetics/
 └── figures/
     ├── fig1_forge_framework.png
     ├── fig2_vf_guidance_ablation.png
@@ -70,6 +83,7 @@ train_forge.py ──► outputs/embeddings/entangled_rnfl_embeddings_both_oof.n
                ──► outputs/models/best_entangled_vf_rnfl_model_both_fold{k}.pt
 run_vae_fcm.py ──► outputs/phenotyping/fcm/{scaler,vae,fcm_model,spec}_*_{with_vf,without_vf}.*
 transfer_inference.py (UKBB / MGBB images + the artifacts above) ──► outputs/inference_<cohort>/*_participant_level.csv  (GWAS phenotypes)
+validation_and_genetics/ (participant-level axes + genotypes) ──► $OUT/{loci,finemap,magma,twas,coloc,smr,mgbb,...}
 ```
 
 ## Installation
@@ -185,9 +199,32 @@ Pure feature transfer, with nothing refitted on external data: the frozen fold-0
 
 External file names must start with `<participant>_<eye>` (eye ∈ OD/OS/R/L/RIGHT/LEFT); a `YYYYMMDD` or `YYYY-MM-DD` token, if present, is used as the acquisition date. Outputs per cohort: 256-D embeddings, latents, memberships, a scan-level CSV, NCC panels, and **`<cohort>_<method>_<condition>_participant_level.csv`** — one row per participant built exactly as in Methods (most recent scan per eye, both eyes averaged on the participant's most recent date; all scans averaged when no date is available), which is the quantitative-trait file for the GWAS.
 
-## Downstream genetics
+## Stage 4 — phenotypic validation and genetics (`validation_and_genetics/`)
 
-The GWAS and post-GWAS analyses use standard tools as described in Methods and are not re-implemented here: REGENIE v4.1.2 (rank-inverse-normalised axes; age, sex, array, refractive error, 10 PCs), PLINK 2 (LD clumping, MGBB replication), LDSC and GCTA-GREML (heritability, genetic correlation), SuSiE-RSS (fine-mapping), MAGMA, S-PrediXcan / S-MultiXcan (GTEx v8 MASHR), coloc (GTEx + EyeGEx retina), SMR/HEIDI and ECLIPSER (cell-type enrichment).
+The 15 FCM axes from stage 3 (`*_participant_level.csv`, one row per participant) are the quantitative traits. Scripts are small, single-purpose and run in the order below; each has a usage line in its docstring. They read every cohort- or machine-specific path from **environment variables** (never hard-coded), write under `$OUT`, and the trait columns are `fcm_z1..fcm_z15` (VF-guided) and `wovf_z1..wovf_z20` (no-VF ablation). Install the environment first:
+
+```bash
+conda env create -f environment_gwas.yml && conda activate forge-gwas
+export FORGE=/path/to/FORGE/validation_and_genetics OUT=/path/to/results SUMSTATS=/path/to/regenie/sumstats
+```
+
+| Step | Scripts | Manuscript correspondence |
+|---|---|---|
+| Sample QC & ancestry | `gwas/sample_qc.sh`, `gwas/ancestry.py` | withdrawals, sex, heterozygosity, relatedness (π̂ > 0.1875); 1000G PC projection + k-NN → 44,477 Europeans; N = 39,381 with refractive error |
+| GWAS | `gwas/regenie.sh fcm\|wovf`, `gwas/callrate_filter.py` | REGENIE v4.1.2 two-step ridge, `--qt --apply-rint`; covariates age, sex, array, spherical equivalent, 10 PCs; ≥ 90 % call rate → 9,050,596 variants |
+| Loci | `gwas/clump.sh`, `gwas/define_loci.py`, `gwas/regions.py` | per-trait clumping (r² < 0.1, ±500 kb, P < 5×10⁻⁸), pooled re-clumping → 53 loci / 41 regions; GENCODE v47 nearest gene; region table for fine-mapping, coloc and SMR |
+| Phenotypic validity | `phenotypic_validation/associations.py`, `incremental_auc.py` | 16 outcomes in three families (rank-inverse-normal exposures, LRT, BH-FDR); four cumulative ridge-logistic models, nested 5-fold CV × 5 seeds, DeLong tests, permuted-endophenotype control |
+| Heritability | `heritability/ldsc.sh`, `greml.sh`, `rg_rp.py`, `meff.py`, `novf_compare.py` | LDSC (HapMap 3) and GCTA-GREML h²; genetic vs phenotypic correlation over the 105 pairs; Li-Ji M_eff = 5; VF-guided vs no-VF h² Z (Mann-Whitney) |
+| Novelty | `novelty/proxies.py`, `novelty/classify.py` | LD proxies (r² ≥ 0.2 / 0.8; UKBB and MGBB panels); LEAD > PROXY > PROXIMITY > novel against POAG / IOP / GWAS Catalog / prior OCT-only GWAS → 23 novel loci |
+| MGBB replication | `mgbb/pheno_covar.py`, `glm.sh`, `lambda_gc.py`, `replication.py`, `clinical.py` | KING unrelated Europeans (n = 711), PLINK 2 `--glm` on RINT axes; sign concordance (locus-block permutation), r and Deming slope (locus-block bootstrap), per-pair power; POAG logistic regression (n = 435) |
+| Fine-mapping | `post-gwas/finemap/get_ukb_ld.sh`, `alkes_windows.py`, `build_ld.py`, `extract_regions.py`, `finemap.py` + `susie_rss.R`, `summarise.py` | SuSiE-RSS (L = 10, 95 % coverage) with UK Biobank 3 Mb LD windows; 47 credible sets in 40 regions |
+| Gene-based / TWAS | `post-gwas/gene/gene_ref.py`, `magma.sh`, `magma_summary.py`, `twas_prep.py`, `twas_run.sh`, `twas_summary.py`, `tissues.txt` | MAGMA v1.10 (35 kb / 10 kb window, 1000G EUR); S-PrediXcan × 18 tissues × {expression, splicing} → S-MultiXcan; thresholds 0.05/(features × 15) and 0.05/(features × M_eff) |
+| Colocalization | `post-gwas/coloc/fetch_qtl.py`, `coloc_gtex.R`, `retina_extract.sh`, `coloc_retina.R`, `coloc_summary.py`, `locuscompare.py` | coloc v5.2.3: SuSiE-based (`coloc.bf_bf`) against eQTL Catalogue GTEx v8, `coloc.abf` against EyeGEx retina; call rule PP4 ≥ 0.8, PP4/(PP3+PP4) ≥ 0.9, ≥ 500 shared variants; locus-compare confirmation |
+| SMR | `post-gwas/smr/windows.py`, `ld_reference.sh`, `fetch_eqtlcat.sh`, `gtex_besd.py`, `retina_besd.py`, `make_ma.py`, `run_smr.sh`, `smr_summary.py` | SMR v1.03 + HEIDI (P > 0.05) with retina (225 tests), GTEx expression and GTEx splicing families |
+
+A putative causal gene is one supported by at least two of MAGMA, S-MultiXcan, colocalization and SMR; this yields the **27 genes** of Fig. 7, three of which (*ARHGEF7*, *CNKSR3*, *ADCY5*) sit at novel loci. ECLIPSER cell-type enrichment (Fig. 8) was run with the Segrè-lab Snakemake implementation and is not duplicated here.
+
+**External tools and references** (installed separately, paths given by environment variables): REGENIE v4.1.2, PLINK 1.9 / 2.0, LDSC, GCTA v1.94.1, MAGMA v1.10, MetaXcan v0.7.5 (a small numpy-2 compatibility patch is included in `post-gwas/gene/`), SMR v1.03, R 4.4 with susieR 0.14.2 and coloc 5.2.3; GENCODE v44/v47, HapMap 3 SNP list, 1000 Genomes Phase 3, UK Biobank LD windows (Weissbrod et al.), GTEx v8 MASHR models, eQTL Catalogue QTS000015, EyeGEx retina eQTL, and the published POAG / IOP association lists used as the novelty reference. UK Biobank and MGB Biobank individual-level data are available only through their access procedures.
 
 ## Citation
 
@@ -200,7 +237,7 @@ If you use FORGE, please cite:
              Wiggs, Janey L. and Eslami, Mohammad and Wang, Mengyu and Elze, Tobias and Segr{\`e}, Ayellet V. and
              Zebardast, Nazlee},
   year    = {2026},
-  Preprint: https://www.medrxiv.org/content/10.64898/2026.05.08.26352729v3
+  note    = {Manuscript under review}
 }
 ```
 
